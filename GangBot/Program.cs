@@ -22,8 +22,6 @@ namespace GangBot
             builder.Services.Configure<OpenAiSettings>(
                 builder.Configuration.GetSection("OpenAi"));
 
-            builder.Services.AddHostedService<Worker>();
-
             builder.Services.AddSingleton(sp =>
                 new DiscordSocketClient(new DiscordSocketConfig
                 {

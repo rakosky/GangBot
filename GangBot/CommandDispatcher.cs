@@ -34,14 +34,5 @@ public class CommandDispatcher
             if(handler.ShouldHandle(message))
                 await handler.HandleCommandAsync(message);
         }
-
-        //var handler = _handlers.FirstOrDefault(h => h.ShouldHandle(message));
-
-        
-        //if (handler is null)
-        //{
-        //    _logger.LogInformation("No handler found for message: {Content}", message.Content);
-        //    return;
-        //}
     }
 }
