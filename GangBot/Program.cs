@@ -1,7 +1,8 @@
-using Discord;
-using Discord.WebSocket;
-using GangBot.CommandHandlers;
 using GangBot.Settings;
+using NetCord.Gateway;
+using NetCord.Hosting.Gateway;
+using NetCord.Hosting.Services;
+using NetCord.Hosting.Services.ApplicationCommands;
 using OpenAI.Responses;
 
 namespace GangBot
@@ -22,23 +23,36 @@ namespace GangBot
             builder.Services.Configure<OpenAiSettings>(
                 builder.Configuration.GetSection("OpenAi"));
 
-            builder.Services.AddSingleton(sp =>
-                new DiscordSocketClient(new DiscordSocketConfig
+            builder.Services
+                .AddDiscordGateway(options =>
                 {
-                    GatewayIntents = GatewayIntents.AllUnprivileged | GatewayIntents.MessageContent
-                }));
+                    var settings = builder.Configuration
+                       .GetSection("DiscordClient")
+                       .Get<DiscordClientSettings>();
 
-            builder.Services.AddSingleton<DiscordManager>();
-            builder.Services.AddSingleton<CommandDispatcher>();
-            builder.Services.AddSingleton<IDiscordCommandHandler, PingCommandHandler>();
-            builder.Services.AddSingleton<IDiscordCommandHandler, DingCommandHandler>();
-            builder.Services.AddSingleton<IDiscordCommandHandler, ChatCompleteCommandHandler>();
+                    ArgumentException.ThrowIfNullOrWhiteSpace(settings?.Token);
+
+                    options.Intents = GatewayIntents.GuildMessages
+                                      | GatewayIntents.DirectMessages
+                                      | GatewayIntents.MessageContent
+                                      | GatewayIntents.DirectMessageReactions
+                                      | GatewayIntents.GuildMessageReactions
+                                      | GatewayIntents.AllNonPrivileged
+                                      | GatewayIntents.Guilds;
+                    options.Token = settings.Token;
+                })
+                .AddGatewayHandlers(typeof(Program).Assembly)
+                .AddApplicationCommands();
 
             builder.Services.AddSingleton(sp =>
             {
                 var settings = builder.Configuration
                     .GetSection("OpenAi")
                     .Get<OpenAiSettings>();
+
+                ArgumentException.ThrowIfNullOrWhiteSpace(settings?.Model);
+                ArgumentException.ThrowIfNullOrWhiteSpace(settings?.ApiKey);
+
 #pragma warning disable OPENAI001 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
                 return new OpenAIResponseClient(settings.Model, settings.ApiKey);
 #pragma warning restore OPENAI001 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
@@ -54,8 +68,9 @@ namespace GangBot
 
             var host = builder.Build();
 
-            var discordHandler = host.Services.GetRequiredService<DiscordManager>();
-            await discordHandler.StartAsync();
+            // Add discord application command modules in assembly
+            host.AddModules(typeof(Program).Assembly);
+
             host.Run();
         }
     }
